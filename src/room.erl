@@ -10,7 +10,7 @@
 %% API
 -export([start/1, stop/1, start_link/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--record(state, {dummy}).
+-record(state, {room_name, owner, members = [], moderators = [], permissions = [], messages = []}).
 start(Name) ->
     _sup:start_child(Name).
 
