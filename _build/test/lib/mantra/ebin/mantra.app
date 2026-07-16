@@ -1,0 +1,12 @@
+{application,mantra,
+             [{description,"Mantra application"},
+              {vsn,"0.1.0"},
+              {registered,[]},
+              {applications,[kernel,stdlib]},
+              {env,[]},
+              {modules,[app,app_sup,client,command_parser,connection,
+                        gateway_sup,listener,registry_sup,room,room_manager,
+                        room_registry,room_sup,session_registry,user_session,
+                        user_session_sup]},
+              {licenses,["Apache-2.0"]},
+              {links,[]}]}.
