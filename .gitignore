@@ -1,0 +1,39 @@
+# rebar3 build artifacts
+.rebar3/
+_build/
+rebar3.crashdump
+rebar.lock
+
+# Compiled files
+*.beam
+*.plt
+*.o
+*.d
+
+# Dependencies (if not vendoring)
+_checkouts/
+deps/
+
+# Release artifacts
+rel/*/lib/
+rel/*/erts-*/
+
+# Common Test / EUnit output
+logs/
+ct_run.*
+.eunit/
+
+# Cover reports
+cover/
+*.coverdata
+
+# Editor / OS files
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Dialyzer
+.dialyzer_plt
