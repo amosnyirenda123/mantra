@@ -1,1 +1,0 @@
--record(command, { guide, arguments = [], flags = #{} }).
