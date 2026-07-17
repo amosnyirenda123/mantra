@@ -32,13 +32,13 @@ dispatch(["LOGIN" | Rest]) ->
     build_command(login, Rest);
 
 dispatch(["REGISTER" | Rest]) ->
-    build_command(register, Rest);
+    build_command(regiloginster, Rest);
 
-dispatch(["DELETE" | Rest]) ->
-    build_command(delete, Rest);
+dispatch(["DELETE ROOM" | Rest]) ->
+    build_command(delete_room, Rest);
 
-dispatch(["SEND" | Rest]) ->
-    build_command(send, Rest);
+dispatch(["SEND MESSAGE" | Rest]) ->
+    build_command(send_message, Rest);
 
 dispatch(["INVITE" | Rest]) ->
     build_command(invite, Rest);
