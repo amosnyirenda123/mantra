@@ -26,15 +26,9 @@ connection_handler(Socket) ->
 loop(Socket) ->
     receive
         {tcp, Socket, Data} ->
-            %% Process Data
-            io:format("SERVER RECEIVED: ~p~n", [binary_to_list(Data)]),
-            case command_parser:parse(binary_to_list(Data)) of
-                {command, _Guide, _Args, _FlagsMap} ->
-                    ok = gen_tcp:send(Socket, <<"Good Command.">>);
-                {error, unknown_command} ->
-                    ok = gen_tcp:send(Socket, <<"Bad Command.">>)
-            end,
-            inet:setopts(Socket, [{active, once}]),
+            io:format("Server Received: ~p~n", [Data]),
+            handle_command(Socket, Data),
+            inet:setopts(Socket, [{active, once}]), 
             loop(Socket);
 
         {tcp_closed, Socket} ->
@@ -44,4 +38,14 @@ loop(Socket) ->
         {tcp_error, Socket, Reason} ->
             io:format("Socket error: ~p~n", [Reason]),
             ok
+    end.
+
+
+
+handle_command(Socket, Data) ->
+    case command_parser:parse(binary_to_list(Data)) of
+        {command, _Guide, _Args, _FlagsMap} ->
+            gen_tcp:send(Socket, <<"Good Command.">>);
+        {error, unknown_command} ->
+            gen_tcp:send(Socket, <<"Bad Command.">>)
     end.
