@@ -6,11 +6,12 @@
 %%% Created : 14 Jul 2026 by Nyirenda Amos <nyirendaamos1@gmail.com>
 -module(client).
 -export([start/0]).
+-include("mantra.hrl").
 
 
 start() ->
     Host = "localhost",
-    Port = 9000,
+    Port = ?LISTENER_PORT,
 
     % Connect to the server
     case gen_tcp:connect(Host, Port, [binary, {packet, 0}]) of

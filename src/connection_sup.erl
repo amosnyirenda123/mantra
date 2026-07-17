@@ -4,13 +4,12 @@
 %%%
 %%% @end
 %%% Created : 14 Jul 2026 by Nyirenda Amos <nyirendaamos1@gmail.com>
--module(room_sup).
+-module(connection_sup).
 
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
--export([start_room/0]).
+-export([start_link/0, start_connection/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -18,8 +17,8 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-start_room() ->
-    supervisor:start_child(?MODULE, []).
+start_connection(Socket) ->
+    supervisor:start_child(?MODULE, [Socket]).
 
 init([]) ->
     SupFlags = #{
@@ -30,12 +29,12 @@ init([]) ->
 
     ChildSpecs = [
         #{
-            id => room,
-            start => {room, start_link, []},
+            id => connection,
+            start => {connection, start_link, []},
             restart => transient,
             shutdown => 5000,
             type => worker,
-            modules => [room]
+            modules => [connection]
         }
     ],
 
