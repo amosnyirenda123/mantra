@@ -1,11 +1,20 @@
 %%% @author Nyirenda Amos <nyirendaamos1@gmail.com>
 %%% @copyright (C) 2026, Nyirenda Amos
-%%% @doc 
+%%% @doc
+%%% Parses textual client commands into a `#command{}` record.
 %%%
+%%% The parser identifies the command type, extracts positional
+%%% arguments, processes command-line style flags (for example,
+%%% `-name value`), and returns either a populated `#command{}`
+%%% record or an error describing why the command could not be
+%%% parsed.
 %%% @end
 %%% Created : 14 Jul 2026 by Nyirenda Amos <nyirendaamos1@gmail.com>
+
 -module(command_parser).
+
 -include("command.hrl").
+
 -export([parse/1]).
 
 parse(Command) ->
@@ -18,6 +27,30 @@ dispatch(["CREATE", "ROOM" | Rest]) ->
 
 dispatch(["JOIN", "ROOM" | Rest]) ->
     build_command(join_room, Rest);
+
+dispatch(["APPROVE", "REQUEST" | Rest]) ->
+    build_command(approve_join_request, Rest);
+
+dispatch(["APPROVE", "REQUESTS" | Rest]) ->
+    build_command(approve_requests, Rest);
+
+dispatch(["ACCEPT", "INVITATION" | Rest]) ->
+    build_command(accept_invitation, Rest);
+
+dispatch(["REJECT", "INVITATION" | Rest]) ->
+    build_command(reject_invitation, Rest);
+
+dispatch(["ADD", "MODERATOR" | Rest]) ->
+    build_command(add_moderator, Rest);
+
+dispatch(["ADD", "MEMBER" | Rest]) ->
+    build_command(add_member, Rest);
+
+dispatch(["REMOVE", "MEMBER" | Rest]) ->
+    build_command(remove_member, Rest);
+
+dispatch(["REMOVE", "MODERATOR" | Rest]) ->
+    build_command(remove_moderator, Rest);
 
 dispatch(["LEAVE", "ROOM" | Rest]) ->
     build_command(leave_room, Rest);
@@ -53,7 +86,6 @@ dispatch(_) ->
     {error, unknown_command}.
 
 
-
 build_command(Guide, Tokens) ->
     case split_arguments_and_flags(Tokens) of
         {error, Reason} ->
@@ -71,9 +103,9 @@ build_command(Guide, Tokens) ->
 split_arguments_and_flags(Tokens) ->
     split_arguments_and_flags(Tokens, [], #{}).
 
+
 split_arguments_and_flags([], ArgumentsAcc, FlagsAcc) ->
     {lists:reverse(ArgumentsAcc), FlagsAcc};
-
 
 split_arguments_and_flags([Token], ArgumentsAcc, FlagsAcc) ->
     case Token of
@@ -96,6 +128,7 @@ split_arguments_and_flags([Token, Value | Rest], ArgumentsAcc, FlagsAcc) ->
                 ArgumentsAcc,
                 maps:put(list_to_atom(Flag), Value, FlagsAcc)
             );
+
         _ ->
             split_arguments_and_flags(
                 [Value | Rest],
