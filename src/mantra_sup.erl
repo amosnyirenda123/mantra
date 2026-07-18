@@ -25,8 +25,7 @@ init(_Args) ->
         supervisor_spec(room_sup, room_sup),
         supervisor_spec(user_session_sup, user_session_sup),
         supervisor_spec(registry_sup, registry_sup),
-        supervisor_spec(connection_sup, connection_sup),
-        worker_spec(room_manager, room_manager)
+        supervisor_spec(connection_sup, connection_sup)
     ],
 
     {ok, {SupervisorSpecification, ChildSpecifications}}.

@@ -57,9 +57,21 @@ logout(SessionId) ->
             {error, authentication_required}
     end.
 
+
+get_user_id(SessionId) ->
+    case get_session_pid(SessionId) of
+        {ok, SessionPid} ->
+            user_session:get_user_id(SessionPid);
+        {error, not_found} ->
+            {error, authentication_required}
+    end.
+
+
 %% SessionId -> {ok, SessionPid} | {error, not_found}
 get_session_pid(SessionId) ->
     session_registry:lookup_pid(SessionId).
+
+
 
 %%====================================================================
 %% Internal

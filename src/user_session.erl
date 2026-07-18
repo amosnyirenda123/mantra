@@ -53,6 +53,9 @@ revoke(SessionPid) ->
 get_info(SessionPid) ->
     gen_server:call(SessionPid, get_info).
 
+get_user_id(SessionPid) ->
+    gen_server:call(SessionPid, get_user_id).
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -87,6 +90,9 @@ handle_call(revoke, _From, State) ->
 
 handle_call(get_info, _From, State) ->
     {reply, {ok, State}, State};
+
+handle_call(get_user_id, _From, State) ->
+    {reply, {ok, State#session.user_id}, State};
 
 handle_call(_Request, _From, State) ->
     {reply, {error, unknown_call}, State}.

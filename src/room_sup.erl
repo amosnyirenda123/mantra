@@ -10,7 +10,7 @@
 
 %% API
 -export([start_link/0]).
--export([start_room/0]).
+-export([start_room/2]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -18,8 +18,8 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-start_room() ->
-    supervisor:start_child(?MODULE, []).
+start_room(RoomName, Owner) ->
+    supervisor:start_child(?MODULE, [RoomName, Owner]).
 
 init([]) ->
     SupFlags = #{
