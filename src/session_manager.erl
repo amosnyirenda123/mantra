@@ -2,86 +2,78 @@
 %%% @author Nyirenda Amos <nyirendaamos1@gmail.com>
 %%% @copyright (C) 2026, Nyirenda Amos
 %%% @doc
-%%% Manages session lifecycle and session operations.
+%%% Orchestrates session lifecycle: authenticates, spawns a
+%%% user_session process, and registers it in session_registry.
+%%%
+%%% This module is intentionally NOT a gen_server. It holds no state
+%%% of its own -- the source of truth for "what sessions exist" lives
+%%% in session_registry (lookup) and in each user_session process
+%%% (the session's own data). Making this a gen_server would mean
+%%% keeping a second, redundant map of sessions here that could drift
+%%% out of sync with the registry, and would turn every login/logout
+%%% across every connection into calls serialized through one mailbox
+%%% for no benefit.
 %%% @end
 %%%-------------------------------------------------------------------
 
 -module(session_manager).
 
--behaviour(gen_server).
-
--define(SERVER, ?MODULE).
-
 %% API
 -export([
-    start_link/0,
-    stop/0,
-    login/1,
-    register/1,
-    logout/1
+    login/3,
+    register/3,
+    logout/1,
+    get_session_pid/1
 ]).
-
-%% gen_server callbacks
--export([
-    init/1,
-    handle_call/3,
-    handle_cast/2,
-    handle_info/2,
-    terminate/2,
-    code_change/3
-]).
-
--record(state, {
-    sessions = #{},      %% Username => [SessionPid]
-    num_sessions = 0
-}).
 
 %%====================================================================
 %% API
 %%====================================================================
 
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+%% Username, Password, ConnPid -> {ok, SessionId} | {error, Reason}
+login(Username, Password, ConnPid) ->
+    case auth_service:authenticate(Username, Password) of
+        {ok, UserId} ->
+            start_session(UserId, ConnPid);
+        {error, Reason} ->
+            {error, Reason}
+    end.
 
-stop() ->
-    gen_server:call(?SERVER, stop).
+%% Username, Password, ConnPid -> {ok, SessionId} | {error, Reason}
+register(Username, Password, ConnPid) ->
+    case auth_service:create_account(Username, Password) of
+        {ok, UserId} ->
+            start_session(UserId, ConnPid);
+        {error, Reason} ->
+            {error, Reason}
+    end.
 
-login(Username) ->
-    gen_server:call(?SERVER, {login, Username}).
+%% SessionId -> ok | {error, not_found}
+logout(SessionId) ->
+    case get_session_pid(SessionId) of
+        {ok, SessionPid} ->
+            user_session:revoke(SessionPid);
+        {error, not_found} ->
+            {error, authentication_required}
+    end.
 
-register(Username) ->
-    gen_server:call(?SERVER, {register, Username}).
-
-logout(Username) ->
-    gen_server:call(?SERVER, {logout, Username}).
+%% SessionId -> {ok, SessionPid} | {error, not_found}
+get_session_pid(SessionId) ->
+    session_registry:lookup_pid(SessionId).
 
 %%====================================================================
-%% gen_server callbacks
+%% Internal
 %%====================================================================
 
-init([]) ->
-    {ok, #state{num_sessions = 0}}.
+start_session(UserId, ConnPid) ->
+    SessionId = generate_session_id(),
+    case user_session_sup:start_session(UserId, SessionId, ConnPid, undefined) of
+        {ok, SessionPid} ->
+            ok = session_registry:register(UserId, SessionId, SessionPid),
+            {ok, SessionId};
+        {error, Reason} ->
+            {error, Reason}
+    end.
 
-handle_call(stop, _From, State) ->
-    {stop, normal, stopped, State};
-
-handle_call({login, _Username}, _From, State) ->
-    {reply, ok, State};
-
-handle_call({register, _Username}, _From, State) ->
-    {reply, ok, State};
-
-handle_call({logout, _Username}, _From, State) ->
-    {reply, ok, State}.
-
-handle_cast(_Msg, State) ->
-    {noreply, State}.
-
-handle_info(_Info, State) ->
-    {noreply, State}.
-
-terminate(_Reason, _State) ->
-    ok.
-
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+generate_session_id() ->
+    base64:encode(crypto:strong_rand_bytes(16)).

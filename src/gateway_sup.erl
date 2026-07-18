@@ -22,7 +22,8 @@ init(_Args) ->
         period => 60},
 
     ChildSpecifications = [
-        worker_spec(listener, [?LISTENER_PORT])
+        worker_spec(listener, [?LISTENER_PORT]),
+        worker_spec(auth_service, [])
     ],
 
     {ok, {SupervisorSpecification, ChildSpecifications}}.

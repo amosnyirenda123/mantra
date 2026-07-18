@@ -9,14 +9,14 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0, start_user_session/0]).
+-export([start_link/0, start_session/4]).
 -export([init/1]).
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-start_user_session() ->
-    supervisor:start_child(?MODULE, []).
+start_session(UserId, SessionId, ConnPid, DeviceId) ->
+    supervisor:start_child(?MODULE, [UserId, SessionId, ConnPid, DeviceId]).
 
 init(_Args) ->
     SupervisorSpecification = #{

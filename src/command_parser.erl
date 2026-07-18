@@ -32,12 +32,15 @@ dispatch(["LOGIN" | Rest]) ->
     build_command(login, Rest);
 
 dispatch(["REGISTER" | Rest]) ->
-    build_command(regiloginster, Rest);
+    build_command(register, Rest);
 
-dispatch(["DELETE ROOM" | Rest]) ->
+dispatch(["LOGOUT" | Rest]) ->
+    build_command(logout, Rest);
+
+dispatch(["DELETE", "ROOM" | Rest]) ->
     build_command(delete_room, Rest);
 
-dispatch(["SEND MESSAGE" | Rest]) ->
+dispatch(["SEND", "MESSAGE" | Rest]) ->
     build_command(send_message, Rest);
 
 dispatch(["INVITE" | Rest]) ->
@@ -100,8 +103,3 @@ split_arguments_and_flags([Token, Value | Rest], ArgumentsAcc, FlagsAcc) ->
                 FlagsAcc
             )
     end.
-
-
-
-
-

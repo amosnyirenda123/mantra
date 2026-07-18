@@ -6,6 +6,7 @@
 %%% Created : 14 Jul 2026 by Nyirenda Amos <nyirendaamos1@gmail.com>
 
 -module(connection).
+-include("command.hrl").
 
 -export([start_link/1]).
 
@@ -43,37 +44,49 @@ loop(State = #state{socket = Socket}) ->
             inet:setopts(Socket, [{active, once}]),
             loop(NewState);
 
+        {session_message, Message} ->
+            gen_tcp:send(Socket, format_incoming(Message)),
+            loop(State);
+
         {tcp_closed, Socket} ->
             io:format("Client disconnected.~n"),
+            detach(State),
             ok;
 
         {tcp_error, Socket, Reason} ->
             io:format("Socket error: ~p~n", [Reason]),
+            detach(State),
             ok
     end.
 
 handle_command(Data, State = #state{socket = Socket}) ->
     case command_parser:parse(binary_to_list(Data)) of
 
-        {command, Cmd, [Username], _Flags}
+        #command{guide = Cmd, arguments = [Username], flags = Flags}
                 when Cmd =:= login;
-                     Cmd =:= register;
-                     Cmd =:= logout ->
-            case handle_session_command(Cmd, Username, State) of
+                     Cmd =:= register ->
+            case handle_session_command(Cmd, Username, Flags, State) of
                 {ok, SessionId} ->
                     gen_tcp:send(Socket, <<"OK.">>),
                     State#state{session_id = SessionId};
-
-                ok ->
-                    gen_tcp:send(Socket, <<"OK.">>),
-                    State;
 
                 {error, Reason} ->
                     gen_tcp:send(Socket, format_error(Reason)),
                     State
             end;
 
-        {command, Cmd, Args, _Flags}
+        #command{guide = logout} ->
+            case handle_session_command(logout, undefined, #{}, State) of
+                ok ->
+                    gen_tcp:send(Socket, <<"OK.">>),
+                    State#state{session_id = undefined};
+
+                {error, Reason} ->
+                    gen_tcp:send(Socket, format_error(Reason)),
+                    State
+            end;
+
+        #command{guide = Cmd, arguments = Args}
                 when Cmd =:= create_room;
                      Cmd =:= join_room;
                      Cmd =:= leave_room;
@@ -91,7 +104,7 @@ handle_command(Data, State = #state{socket = Socket}) ->
                     State
             end;
 
-        {command, Cmd, Args, _Flags} ->
+        #command{guide = Cmd, arguments = Args} ->
             case handle_utility_command(Cmd, Args, State) of
                 ok ->
                     gen_tcp:send(Socket, <<"OK.">>),
@@ -103,7 +116,7 @@ handle_command(Data, State = #state{socket = Socket}) ->
             end;
 
         {error, unknown_command} ->
-            gen_tcp:send(Socket, <<"Bad Command.">>),
+            gen_tcp:send(Socket, <<"Bad Command!">>),
             State
     end.
 
@@ -118,14 +131,23 @@ handle_utility_command(_Cmd, _Args, _State) ->
 %% Session Commands
 %%====================================================================
 
-handle_session_command(login, Username, _State) ->
-    session_manager:login(Username);
+handle_session_command(login, Username, Flags, _State) ->
+    case maps:find(password, Flags) of
+        {ok, Password} -> session_manager:login(Username, Password, self());
+        error -> {error, missing_password}
+    end;
 
-handle_session_command(register, Username, _State) ->
-    session_manager:register(Username);
+handle_session_command(register, Username, Flags, _State) ->
+    case maps:find(password, Flags) of
+        {ok, Password} -> session_manager:register(Username, Password, self());
+        error -> {error, missing_password}
+    end;
 
-handle_session_command(logout, Username, _State) ->
-    session_manager:logout(Username).
+handle_session_command(logout, _Username, _Flags, #state{session_id = undefined}) ->
+    {error, authentication_required};
+
+handle_session_command(logout, _Username, _Flags, #state{session_id = SessionId}) ->
+    session_manager:logout(SessionId).
 
 %%====================================================================
 %% Room Commands
@@ -176,8 +198,28 @@ handle_room_command(_Cmd, _Args, _State) ->
 %% Helpers
 %%====================================================================
 
+detach(#state{session_id = undefined}) ->
+    ok;
+detach(#state{session_id = SessionId}) ->
+    case session_manager:get_session_pid(SessionId) of
+        {ok, SessionPid} -> user_session:detach(SessionPid);
+        {error, not_found} -> ok
+    end.
+
+format_incoming(Message) ->
+    io_lib:format("~p~n", [Message]).
+
 format_error(authentication_required) ->
     <<"Error: login required.">>;
+
+format_error(missing_password) ->
+    <<"Error: password required.">>;
+
+format_error(username_taken) ->
+    <<"Error: username is taken.">>;
+
+format_error(invalid_credentials) ->
+    <<"Error: invalid credentials.">>;
 
 format_error(bad_arguments) ->
     <<"Error: bad arguments.">>;
