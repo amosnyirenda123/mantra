@@ -15,9 +15,7 @@
     session_id = undefined
 }).
 
-%%====================================================================
-%% API
-%%====================================================================
+
 
 start_link(Socket) ->
     Pid = spawn_link(fun() ->
@@ -29,9 +27,7 @@ start_link(Socket) ->
     end),
     {ok, Pid}.
 
-%%====================================================================
-%% Internal
-%%====================================================================
+
 
 connection_handler(State = #state{socket = Socket}) ->
     inet:setopts(Socket, [{active, once}]),
@@ -45,7 +41,7 @@ loop(State = #state{socket = Socket}) ->
             loop(NewState);
 
         {session_message, Message} ->
-            gen_tcp:send(Socket, format_incoming(Message)),
+            gen_tcp:send(Socket, mantra_format:incoming(Message)),
             loop(State);
 
         {tcp_closed, Socket} ->
@@ -206,6 +202,5 @@ detach(#state{session_id = SessionId}) ->
         {error, not_found} -> ok
     end.
 
-format_incoming(Message) ->
-    io_lib:format("~p~n", [Message]).
+
 
