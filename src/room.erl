@@ -125,19 +125,37 @@ handle_call({add_message, Message}, _From, State) ->
     {reply, ok, State#state{messages = State#state.messages ++ [Message]}};
 
 handle_call({add_invitation, UserId, Start, Expiry}, _From, State) ->
-    Invitation = {UserId, Start, Expiry, false},
-    {reply, ok, State#state{invitations = State#state.invitations ++ [Invitation]}};
+    case lists:member(UserId, State#state.members) of
+        true ->
+            {reply, {error, already_member}, State};
+        false ->
+            case lists:keymember(UserId, 1, State#state.invitations) of
+                true ->
+                    {reply, {error, already_invited}, State};
+                false ->
+                    Invitation = {UserId, Start, Expiry, false},
+                    NewState = State#state{
+                        invitations = [Invitation | State#state.invitations]
+                    },
+                    {reply, ok, NewState}
+            end
+    end;
 
 handle_call({promote_join_request, UserId}, _From, State) ->
-    case lists:member(UserId, State#state.join_requests) of
+    case lists:member(UserId, State#state.members) of
         true ->
-            NewState = State#state{
-                join_requests = lists:delete(UserId, State#state.join_requests),
-                members = [UserId | State#state.members]
-            },
-            {reply, ok, NewState};
+            {reply, {error, already_member}, State};
         false ->
-            {reply, {error, not_requested}, State}
+            case lists:member(UserId, State#state.join_requests) of
+                true ->
+                    NewState = State#state{
+                        join_requests = lists:delete(UserId, State#state.join_requests),
+                        members = [UserId | State#state.members]
+                    },
+                    {reply, ok, NewState};
+                false ->
+                    {reply, {error, join_request_not_found}, State}
+            end
     end;
 
 handle_call({promote_all_join_requests}, _From, State) ->
@@ -147,22 +165,31 @@ handle_call({promote_all_join_requests}, _From, State) ->
     },
     {reply, ok, NewState};
 
+
 handle_call({accept_invitation, UserId}, _From, State) ->
     Now = erlang:system_time(second),
-    case lists:keyfind(UserId, 1, State#state.invitations) of
-        {UserId, _Start, Expiry, false} when Expiry >= Now ->
-            NewInvitations = lists:keydelete(UserId, 1, State#state.invitations),
-            NewState = State#state{
-                invitations = NewInvitations,
-                members = [UserId | State#state.members]
-            },
-            {reply, ok, NewState};
-        {UserId, _Start, _Expiry, false} ->
-            {reply, {error, expired}, State};
-        {UserId, _Start, _Expiry, true} ->
-            {reply, {error, already_accepted}, State};
+    case lists:member(UserId, State#state.members) of
+        true ->
+            {reply, {error, already_member}, State};
         false ->
-            {reply, {error, not_invited}, State}
+            case lists:keyfind(UserId, 1, State#state.invitations) of
+                {UserId, _Start, Expiry, false} when Expiry >= Now ->
+                    NewInvitations = lists:keydelete(UserId, 1, State#state.invitations),
+                    NewState = State#state{
+                        invitations = NewInvitations,
+                        members = [UserId | State#state.members]
+                    },
+                    {reply, ok, NewState};
+
+                {UserId, _Start, _Expiry, false} ->
+                    {reply, {error, invitation_expired}, State};
+
+                {UserId, _Start, _Expiry, true} ->
+                    {reply, {error, invitation_already_accepted}, State};
+
+                false ->
+                    {reply, {error, invitation_not_found}, State}
+            end
     end;
 
 handle_call({reject_invitation, UserId}, _From, State) ->
@@ -170,21 +197,39 @@ handle_call({reject_invitation, UserId}, _From, State) ->
         {UserId, _Start, _Expiry, false} ->
             NewInvitations = lists:keydelete(UserId, 1, State#state.invitations),
             {reply, ok, State#state{invitations = NewInvitations}};
+
         {UserId, _Start, _Expiry, true} ->
-            {reply, {error, already_accepted}, State};
+            {reply, {error, invitation_already_accepted}, State};
+
         false ->
-            {reply, {error, not_invited}, State}
+            {reply, {error, invitation_not_found}, State}
     end;
 
 
 
 handle_call({remove_moderator, UserId}, _From, State) ->
-    NewState = State#state{moderators = lists:delete(UserId, State#state.moderators)},
-    {reply, ok, NewState};
+    case lists:member(UserId, State#state.moderators) of
+        true ->
+            NewState = State#state{
+                moderators = lists:delete(UserId, State#state.moderators)
+            },
+            {reply, ok, NewState};
+
+        false ->
+            {reply, {error, not_moderator}, State}
+    end;
 
 handle_call({remove_member, UserId}, _From, State) ->
-    NewState = State#state{members = lists:delete(UserId, State#state.members)},
-    {reply, ok, NewState};
+    case lists:member(UserId, State#state.members) of
+        true ->
+            NewState = State#state{
+                members = lists:delete(UserId, State#state.members)
+            },
+            {reply, ok, NewState};
+
+        false ->
+            {reply, {error, not_member}, State}
+    end;
 
 handle_call({get_members}, _From, State) ->
     {reply, State#state.members, State};
@@ -193,8 +238,16 @@ handle_call({get_moderators}, _From, State) ->
     {reply, State#state.moderators, State};
 
 handle_call({add_moderator, UserId}, _From, State) ->
-    NewState = State#state{moderators = [UserId | State#state.moderators]},
-    {reply, ok, NewState};
+    case lists:member(UserId, State#state.moderators) of
+        true ->
+            {reply, {error, already_moderator}, State};
+
+        false ->
+            NewState = State#state{
+                moderators = [UserId | State#state.moderators]
+            },
+            {reply, ok, NewState}
+    end;
 
 handle_call({add_member, UserId}, _From, State) ->
     case lists:member(UserId, State#state.members) of
@@ -206,8 +259,22 @@ handle_call({add_member, UserId}, _From, State) ->
     end;
 
 handle_call({add_to_join_requests, UserId}, _From, State) ->
-    NewState = State#state{join_requests = [UserId | State#state.join_requests]},
-    {reply, ok, NewState};
+    case lists:member(UserId, State#state.members) of
+        true ->
+            {reply, {error, already_member}, State};
+
+        false ->
+            case lists:member(UserId, State#state.join_requests) of
+                true ->
+                    {reply, {error, already_requested}, State};
+
+                false ->
+                    NewState = State#state{
+                        join_requests = [UserId | State#state.join_requests]
+                    },
+                    {reply, ok, NewState}
+            end
+    end;
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.

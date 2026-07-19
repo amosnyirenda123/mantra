@@ -71,7 +71,7 @@ handle_command(Data, State = #state{socket = Socket}) ->
                     State#state{session_id = SessionId};
 
                 {error, Reason} ->
-                    gen_tcp:send(Socket, format_error(Reason)),
+                    gen_tcp:send(Socket, mantra_errors:format_error(Reason)),
                     State
             end;
 
@@ -82,7 +82,7 @@ handle_command(Data, State = #state{socket = Socket}) ->
                     State#state{session_id = undefined};
 
                 {error, Reason} ->
-                    gen_tcp:send(Socket, format_error(Reason)),
+                    gen_tcp:send(Socket, mantra_errors:format_error(Reason)),
                     State
             end;
 
@@ -100,7 +100,7 @@ handle_command(Data, State = #state{socket = Socket}) ->
                     State;
 
                 {error, Reason} ->
-                    gen_tcp:send(Socket, format_error(Reason)),
+                    gen_tcp:send(Socket, mantra_errors:format_error(Reason)),
                     State
             end;
 
@@ -111,7 +111,7 @@ handle_command(Data, State = #state{socket = Socket}) ->
                     State;
 
                 {error, Reason} ->
-                    gen_tcp:send(Socket, format_error(Reason)),
+                    gen_tcp:send(Socket, mantra_errors:format_error(Reason)),
                     State
             end;
 
@@ -209,20 +209,3 @@ detach(#state{session_id = SessionId}) ->
 format_incoming(Message) ->
     io_lib:format("~p~n", [Message]).
 
-format_error(authentication_required) ->
-    <<"Error: login required.">>;
-
-format_error(missing_password) ->
-    <<"Error: password required.">>;
-
-format_error(username_taken) ->
-    <<"Error: username is taken.">>;
-
-format_error(invalid_credentials) ->
-    <<"Error: invalid credentials.">>;
-
-format_error(bad_arguments) ->
-    <<"Error: bad arguments.">>;
-
-format_error(_) ->
-    <<"Error: command failed.">>.
