@@ -23,7 +23,9 @@
     login/3,
     register/3,
     logout/1,
-    get_session_pid/1
+    get_session_pid/1,
+    get_user_id/1,
+    whoami/1
 ]).
 
 %%====================================================================
@@ -48,6 +50,16 @@ register(Username, Password, ConnPid) ->
             {error, Reason}
     end.
 
+
+%% SessionId -> {ok, UserName} | {error, authentication_required}
+whoami(SessionId) ->
+    case get_user_id(SessionId) of
+        {ok, UserId} ->
+            auth_service:get_user_by_id(UserId);
+        {error, authentication_required} -> {error, authentication_required}
+    end.
+
+
 %% SessionId -> ok | {error, not_found}
 logout(SessionId) ->
     case get_session_pid(SessionId) of
@@ -56,6 +68,8 @@ logout(SessionId) ->
         {error, not_found} ->
             {error, authentication_required}
     end.
+
+
 
 
 get_user_id(SessionId) ->

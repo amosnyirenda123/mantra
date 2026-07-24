@@ -1,4 +1,4 @@
-{application, mantra,
+{application, mantra_server,
  [{description, "Distributed Chat Backend Service."},
   {vsn, "0.1.0"},
   {registered, []},
@@ -6,7 +6,7 @@
    [kernel,
     stdlib
    ]},
-  {mod, {mantra, []}},
+  {mod, {mantra_server, []}},
   {env, []},
   {modules, []},
   {licenses, ["Apache-2.0"]},

@@ -4,7 +4,7 @@
 %%%
 %%% @end
 %%% Created : 14 Jul 2026 by Nyirenda Amos <nyirendaamos1@gmail.com>
--module(mantra_sup).
+-module(mantra_server_sup).
 -behaviour(supervisor).
 
 %% API
@@ -42,13 +42,13 @@ supervisor_spec(Id, Module) ->
         modules => [Module]
     }.
 
-worker_spec(Id, Module) ->
-    #{
-        id => Id,
-        start => {Module, start_link, []},
-        restart => permanent,
-        shutdown => 5000,
-        type => worker,
-        modules => [Module]
-    }.
+% worker_spec(Id, Module) ->
+%     #{
+%         id => Id,
+%         start => {Module, start_link, []},
+%         restart => permanent,
+%         shutdown => 5000,
+%         type => worker,
+%         modules => [Module]
+%     }.
 

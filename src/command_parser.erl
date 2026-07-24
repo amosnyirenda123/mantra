@@ -31,8 +31,8 @@ dispatch(["JOIN", "ROOM" | Rest]) ->
 dispatch(["APPROVE", "REQUEST" | Rest]) ->
     build_command(approve_join_request, Rest);
 
-dispatch(["APPROVE", "REQUESTS" | Rest]) ->
-    build_command(approve_requests, Rest);
+dispatch(["APPROVE", "ALL" , "REQUESTS" | Rest]) ->
+    build_command(approve_all_join_requests, Rest);
 
 dispatch(["ACCEPT", "INVITATION" | Rest]) ->
     build_command(accept_invitation, Rest);
@@ -81,6 +81,9 @@ dispatch(["INVITE" | Rest]) ->
 
 dispatch(["KICK" | Rest]) ->
     build_command(kick, Rest);
+
+dispatch(["WHOAMI" | Rest]) ->
+    build_command(whoami, Rest);
 
 dispatch(_) ->
     {error, unknown_command}.

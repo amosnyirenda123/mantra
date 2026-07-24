@@ -13,6 +13,11 @@
 %%% the ETS table directly like session_registry does, but auth is
 %%% not a hot path the way session lookup is, so it's left going
 %%% through the gen_server here for simplicity.
+%%%
+%%% Two tables: ?TABLE_ID (username -> {user_id, hash}) is primary;
+%%% ?ID_TABLE_ID (user_id -> username) is a secondary index for
+%%% get_user_by_id/1. Both are written together in create_account/2,
+%%% so they can't drift out of sync.
 %%% @end
 %%%-------------------------------------------------------------------
 
@@ -21,9 +26,10 @@
 
 -define(SERVER, ?MODULE).
 -define(TABLE_ID, auth_service_users).
+-define(ID_TABLE_ID, auth_service_users_by_id).
 
 %% API
--export([start_link/0, stop/0, create_account/2, authenticate/2]).
+-export([start_link/0, stop/0, create_account/2, authenticate/2, get_user_by_id/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -48,12 +54,17 @@ create_account(Username, Password) ->
 authenticate(Username, Password) ->
     gen_server:call(?SERVER, {authenticate, Username, Password}).
 
+%% UserId -> {ok, Username} | {error, not_found}
+get_user_by_id(UserId) ->
+    gen_server:call(?SERVER, {get_user_by_id, UserId}).
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
 
 init([]) ->
     ets:new(?TABLE_ID, [set, named_table, protected]),
+    ets:new(?ID_TABLE_ID, [set, named_table, protected]),
     {ok, #state{next_user_id = 1}}.
 
 handle_call(stop, _From, State) ->
@@ -65,10 +76,18 @@ handle_call({create_account, Username, Password}, _From, State) ->
             UserId = State#state.next_user_id,
             Hash = hash_password(Password),
             true = ets:insert(?TABLE_ID, {Username, UserId, Hash}),
+            true = ets:insert(?ID_TABLE_ID, {UserId, Username}),
             {reply, {ok, UserId}, State#state{next_user_id = UserId + 1}};
         [_Existing] ->
             {reply, {error, username_taken}, State}
     end;
+
+handle_call({get_user_by_id, UserId}, _From, State) ->
+    Reply = case ets:lookup(?ID_TABLE_ID, UserId) of
+        [{UserId, Username}] -> {ok, Username};
+        [] -> {error, not_found}
+    end,
+    {reply, Reply, State};
 
 handle_call({authenticate, Username, Password}, _From, State) ->
     Reply = case ets:lookup(?TABLE_ID, Username) of

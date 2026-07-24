@@ -8,7 +8,7 @@
 -behaviour(gen_server).
 
 %% API
--export([stop/1, start_link/1]).
+-export([stop/1, start_link/2]).
 -export([
     get_messages/1, 
     get_members/1, 
@@ -44,8 +44,8 @@
 
 
 
-start_link(Args) ->
-    gen_server:start_link(?MODULE, Args, []).
+start_link(RoomName, Owner) ->
+    gen_server:start_link(?MODULE, {RoomName, Owner}, []).
 
 stop(RoomPid) ->
     gen_server:call(RoomPid, stop).

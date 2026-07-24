@@ -71,6 +71,17 @@ handle_command(Data, State = #state{socket = Socket}) ->
                     State
             end;
 
+        #command{guide = whoami} ->
+            case handle_session_command(whoami, [], #{}, State) of
+                {ok, UserName} ->
+                    gen_tcp:send(Socket, list_to_binary(UserName)),
+                    State;
+
+                {error, Reason} ->
+                    gen_tcp:send(Socket, mantra_errors:format_error(Reason)),
+                    State
+            end;
+
         #command{guide = logout} ->
             case handle_session_command(logout, undefined, #{}, State) of
                 ok ->
@@ -89,9 +100,22 @@ handle_command(Data, State = #state{socket = Socket}) ->
                      Cmd =:= rename_room;
                      Cmd =:= send_message;
                      Cmd =:= invite;
-                     Cmd =:= kick ->
+                     Cmd =:= kick;
+                     Cmd =:= accept_invitation;
+                     Cmd =:= reject_invitation;
+                     Cmd =:= approve_join_request;
+                     Cmd =:= approve_all_join_requests;
+                     Cmd =:= add_moderator;
+                     Cmd =:= add_member;
+                     Cmd =:= remove_member;
+                     Cmd =:= remove_moderator;
+                     Cmd =:= lookup_room;
+                     Cmd =:= delete_room ->
             case handle_room_command(Cmd, Args, State) of
                 ok ->
+                    gen_tcp:send(Socket, <<"OK.">>),
+                    State;
+                {ok, _RoomPid} ->
                     gen_tcp:send(Socket, <<"OK.">>),
                     State;
 
@@ -143,7 +167,13 @@ handle_session_command(logout, _Username, _Flags, #state{session_id = undefined}
     {error, authentication_required};
 
 handle_session_command(logout, _Username, _Flags, #state{session_id = SessionId}) ->
-    session_manager:logout(SessionId).
+    session_manager:logout(SessionId);
+
+handle_session_command(whoami, _Args, _Flags, #state{session_id = undefined}) ->
+    {error, authentication_required};
+
+handle_session_command(whoami, _Args, _Flags, #state{session_id = SessionId}) ->
+    session_manager:whoami(SessionId).
 
 %%====================================================================
 %% Room Commands
@@ -187,6 +217,56 @@ handle_room_command(kick,
                     #state{session_id = SessionId}) ->
     room_manager:kick(RoomName, TargetUser, SessionId);
 
+handle_room_command(accept_invitation,
+                    [RoomName],
+                    #state{session_id = SessionId}) ->
+    room_manager:accept_invitation(RoomName, SessionId);
+
+handle_room_command(reject_invitation,
+                    [RoomName],
+                    #state{session_id = SessionId}) ->
+    room_manager:reject_invitation(RoomName, SessionId);
+
+handle_room_command(approve_join_request,
+                    [RoomName, TargetUser],
+                    #state{session_id = SessionId}) ->
+    room_manager:approve_join_request(RoomName, TargetUser, SessionId);
+
+handle_room_command(approve_all_join_requests,
+                    [RoomName],
+                    #state{session_id = SessionId}) ->
+    room_manager:approve_all_join_requests(RoomName, SessionId);
+
+handle_room_command(add_moderator,
+                    [RoomName, TargetUser],
+                    #state{session_id = SessionId}) ->
+    room_manager:add_moderator(RoomName, TargetUser, SessionId);
+
+handle_room_command(add_member,
+                    [RoomName, TargetUser],
+                    #state{session_id = SessionId}) ->
+    room_manager:add_member(RoomName, TargetUser, SessionId);
+
+handle_room_command(remove_member,
+                    [RoomName, TargetUser],
+                    #state{session_id = SessionId}) ->
+    room_manager:remove_member(RoomName, TargetUser, SessionId);
+
+handle_room_command(remove_moderator,
+                    [RoomName, TargetUser],
+                    #state{session_id = SessionId}) ->
+    room_manager:remove_moderator(RoomName, TargetUser, SessionId);
+
+handle_room_command(lookup_room,
+                    [RoomName],
+                    #state{session_id = SessionId}) ->
+    room_manager:lookup_room(RoomName, SessionId);
+
+handle_room_command(delete_room,
+                    [RoomName],
+                    #state{session_id = SessionId}) ->
+    room_manager:delete_room(RoomName, SessionId);
+
 handle_room_command(_Cmd, _Args, _State) ->
     {error, bad_arguments}.
 
@@ -201,6 +281,3 @@ detach(#state{session_id = SessionId}) ->
         {ok, SessionPid} -> user_session:detach(SessionPid);
         {error, not_found} -> ok
     end.
-
-
-

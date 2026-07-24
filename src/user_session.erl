@@ -10,7 +10,7 @@
 -define(GRACE_PERIOD_MS, 30000).
 
 %% API
--export([start_link/4, attach/2, detach/1, deliver/2, revoke/1, get_info/1]).
+-export([start_link/4, attach/2, detach/1, deliver/2, revoke/1, get_info/1, get_user_id/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -record(session, {
@@ -100,7 +100,7 @@ handle_call(_Request, _From, State) ->
 handle_cast(detach, State) ->
     {noreply, start_expiry(State#session{conn_pid = undefined})};
 
-handle_cast({deliver, Message}, #session{conn_pid = undefined} = State) ->
+handle_cast({deliver, _Message}, #session{conn_pid = undefined} = State) ->
     %% Not connected right now -- simplest option is to drop it.
     %% (Swap in a buffer/queue here later if you need delivery
     %% guarantees across reconnects.)

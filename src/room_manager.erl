@@ -24,7 +24,9 @@
     add_moderator/3,
     add_member/3,
     remove_member/3,
-    remove_moderator/3
+    remove_moderator/3,
+    lookup_room/2,
+    delete_room/2
 ]).
 
 room_pid(RoomName) ->
@@ -40,7 +42,7 @@ create_room(RoomName, SessionId) ->
                 {error, not_found} ->
                     case room_sup:start_room(RoomName, UserId) of
                         {ok, RoomPid} ->
-                            room_registry:register(RoomPid, RoomName),
+                            room_registry:register(RoomName, RoomPid),
                             {ok, RoomPid};
                         {error, Reason} ->
                             {error, Reason}
@@ -61,6 +63,38 @@ join_room(RoomName, SessionId) ->
             {error, invalid_session}
     end.
 
+
+
+lookup_room(RoomName, SessionId) ->
+    case session_manager:get_user_id(SessionId) of
+        {ok, _UserId} ->
+            case room_pid(RoomName) of
+                {ok, _RoomPid} -> ok;
+                {error, not_found} -> {error, room_not_found}
+            end;
+        {error, not_found} ->
+            {error, invalid_session}
+    end.
+
+
+delete_room(RoomName, SessionId) ->
+    case session_manager:get_user_id(SessionId) of
+        {ok, UserId} ->
+            case room_pid(RoomName) of
+                {ok, RoomPid} ->
+                    case room:get_owner(RoomPid) of
+                        UserId ->
+                            room_registry:unregister(RoomName),
+                            room:stop(RoomPid);
+                        _ ->
+                            {error, not_owner}
+                    end;
+                {error, not_found} ->
+                    {error, room_not_found}
+            end;
+        {error, not_found} ->
+            {error, invalid_session}
+    end.
 
 approve_join_request(RoomName, TargetUser, SessionId) ->
     case session_manager:get_user_id(SessionId) of
@@ -119,7 +153,9 @@ rename_room(RoomName, NewName, SessionId) ->
             case room_pid(RoomName) of
                 {ok, RoomPid} ->
                     case room:get_owner(RoomPid) of
-                        UserId -> room:rename(RoomPid, NewName);
+                        UserId ->
+                            % TODO: Must find a way to update record in registry. The following method does not update the entry in the registry.
+                            room:rename(RoomPid, NewName);
                         _ -> {error, not_owner}
                     end;
                 {error, not_found} ->
